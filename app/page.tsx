@@ -12,11 +12,14 @@ const openai = new OpenAI({
 export default function Home() {
   const [textInput, setTextInput] = useState("");
   const [messages, setMessages] = useState<{role:"You" | "ChatGPT", content:string}[]>([]);
+  const [isGenerating, setIsGenerating] = useState(false);
   const middleAreaRef = useRef<HTMLDivElement>(null);
 
   const handleSubmit = useCallback(async () => {
     if(textInput === "") return;
 
+    setTextInput("");
+    setIsGenerating(true);
     setMessages((prevMessages)=>[...prevMessages, {role:"You", content:textInput}]);
 
     const stream = await openai.chat.completions.create({
@@ -36,6 +39,7 @@ export default function Home() {
         }
       });
     }
+    setIsGenerating(false);
   },[textInput]);
 
   useEffect(()=>{
@@ -81,9 +85,8 @@ export default function Home() {
               setTextInput(e.target.value);
             }}
             onKeyPress={(e)=>{ //onKeyDown has a issue triggering twice in Korean
-              if(e.key === "Enter") {
+              if(e.key === "Enter" && !e.shiftKey) {
                 handleSubmit();
-                setTextInput("");
                 e.preventDefault();
               }
             }}/>
@@ -207,7 +210,7 @@ const AttachButton = styled.div`
   display: flex;
   justify-content: center;
   align-items: center;
-  margin: 15px;
+  margin: 20px 15px;
 `;
 
 const TextInput = styled.textarea`
@@ -222,6 +225,8 @@ const TextInput = styled.textarea`
   max-height: 200px;
   height: auto;
   resize: none;
+  margin: 15px 0px;
+  line-height: 1.6;
 `;
 
 const SubmitButtonArea = styled.div`
@@ -239,5 +244,5 @@ const SubmitButton = styled.div<{$available: boolean}>`
   display: flex;
   justify-content: center;
   align-items: center;
-  margin: 8px;
+  margin: 16px 15px;
 `;
