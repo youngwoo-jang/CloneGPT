@@ -45,7 +45,7 @@ export default function Home() {
 
   return (
     <Base>
-      <MiddleArea ref={middleAreaRef}>
+      <MiddleArea ref={middleAreaRef} className="jang">
         <Middle>
           {messages.map((message, index)=> {
             return (
@@ -117,6 +117,17 @@ const MiddleArea = styled.div`
   display: flex;
   justify-content: center;
   overflow-y: scroll;
+
+  &::-webkit-scrollbar {
+    height: 1rem;
+    width: 9px;
+  }
+  &::-webkit-scrollbar-thumb {
+    background-color: hsla(0,0%,100%,.1);
+    border-color: rgba(255,255,255,1);
+    border-radius: 9999px;
+    border-width: 1px;
+  }
 `
 
 const Middle = styled.div`
