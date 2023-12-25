@@ -16,19 +16,30 @@ export default function Home() {
   const middleAreaRef = useRef<HTMLDivElement>(null);
   const textInputRef = useRef<HTMLTextAreaElement>(null);
   const stoppedGenerating = useRef(false);
+  const isActivatedAutoScroll = useRef(true);
 
   const availableToSubmit = textInput !== "";
 
+  // Scroll to bottom when new message is added
   useEffect(()=>{
-    if(middleAreaRef.current === null) return;
-    middleAreaRef.current.scrollTop = middleAreaRef.current.scrollHeight;
+    if(middleAreaRef.current === null || isActivatedAutoScroll.current === false) return;
+    middleAreaRef.current.scrollTop = Number.MAX_SAFE_INTEGER;
   },[messages])
 
+  // Auto resize text input
   useEffect(()=>{
     if(textInputRef.current === null) return;
     textInputRef.current.style.height = 'auto';
     textInputRef.current.style.height = textInputRef.current.scrollHeight + "px";
   },[textInput])
+
+  const handleScroll = useCallback(() => {
+    if(middleAreaRef.current === null) return;
+    isActivatedAutoScroll.current = middleAreaRef.current.scrollTop >= middleAreaRef.current.scrollHeight - middleAreaRef.current.clientHeight - 50; //50 is just margin
+    if(isActivatedAutoScroll.current) {
+      console.log("activated")
+    }
+  },[middleAreaRef]);
 
   const handleSubmit = useCallback(async () => {
     if(availableToSubmit === false) return;
@@ -42,8 +53,6 @@ export default function Home() {
       messages: [...messages, { role: "user", content: textInput}],
       stream: true
     });
-    
-    console.log([...messages, { role: "user", content: textInput}])
 
     for await (const chunk of stream) {
       if(stoppedGenerating.current) {
@@ -70,7 +79,7 @@ export default function Home() {
 
   return (
     <Base>
-      <MiddleArea ref={middleAreaRef} className="jang">
+      <MiddleArea ref={middleAreaRef} onScroll={handleScroll}>
         <Middle>
           {messages.map((message, index)=> {
             return (
@@ -155,6 +164,7 @@ const MiddleArea = styled.div`
   display: flex;
   justify-content: center;
   overflow-y: scroll;
+  scroll-behavior: smooth;
 
   &::-webkit-scrollbar {
     height: 1rem;
@@ -178,11 +188,12 @@ const Middle = styled.div`
 
 const MessageArea = styled.div`
   display: flex;
-  padding: 30px 20px;
+  padding: 17px 20px;
   width: 100%;
   max-width: 700px;
   box-sizing: border-box;
 `
+
 const MessageLogo = styled.div`
   width: 30px;
   height: 30px;
@@ -200,6 +211,7 @@ const MessageTextBody = styled.div`
   font-weight: 300;
   font-size: 16px;
   white-space: pre-wrap;
+  line-height: 1.8;
 `
 
 function HumanLogo({size}: {size?: number}) {
