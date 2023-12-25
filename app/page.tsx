@@ -11,7 +11,7 @@ const openai = new OpenAI({
 
 export default function Home() {
   const [textInput, setTextInput] = useState("");
-  const [messages, setMessages] = useState<{role:"You" | "ChatGPT", content:string}[]>([]);
+  const [messages, setMessages] = useState<{role:"user" | "assistant", content:string}[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const middleAreaRef = useRef<HTMLDivElement>(null);
   const textInputRef = useRef<HTMLTextAreaElement>(null);
@@ -35,14 +35,16 @@ export default function Home() {
 
     setTextInput("");
     setIsGenerating(true);
-    setMessages((prevMessages)=>[...prevMessages, {role:"You", content:textInput}]);
+    setMessages((prevMessages)=>[...prevMessages, {role:"user", content:textInput}]);
 
     const stream = await openai.chat.completions.create({
       model: "gpt-4",
-      messages: [{ role: "user", content: textInput}],
+      messages: [...messages, { role: "user", content: textInput}],
       stream: true
     });
     
+    console.log([...messages, { role: "user", content: textInput}])
+
     for await (const chunk of stream) {
       if(stoppedGenerating.current) {
         stream.controller.abort();
@@ -50,8 +52,8 @@ export default function Home() {
         break;
       }
       setMessages((prevMessages)=> {
-        if(prevMessages[prevMessages.length-1].role == "You") {
-          return [...prevMessages, {role:"ChatGPT", content:chunk.choices[0]?.delta?.content || ""}];
+        if(prevMessages[prevMessages.length-1].role == "user") {
+          return [...prevMessages, {role:"assistant", content:chunk.choices[0]?.delta?.content || ""}];
         } else {
           const newMessages = [...prevMessages];
           newMessages[newMessages.length-1].content += chunk.choices[0]?.delta?.content || "";
@@ -60,7 +62,7 @@ export default function Home() {
       });
     }
     setIsGenerating(false);
-  },[textInput, availableToSubmit]);
+  },[textInput, availableToSubmit, messages]);
 
   const handleStop = () => {
     stoppedGenerating.current = true;
@@ -74,10 +76,19 @@ export default function Home() {
             return (
             <MessageArea key={index}>
               <MessageLogo>
-                {message.role === "You" ? <HumanLogo/> : <AndroidLogo/>}
+                {message.role === "user" 
+                  ? <HumanLogo size={30}/> 
+                  : <AndroidLogo/>
+                }
               </MessageLogo>
               <MessageTextArea>
-                <MessageTextTitle>{message.role}</MessageTextTitle>
+                <MessageTextTitle>
+                  {
+                  message.role === "user"
+                    ? "You"
+                    : "CloneGPT"
+                  }
+                </MessageTextTitle>
                 <MessageTextBody>{message.content}</MessageTextBody>
               </MessageTextArea>
             </MessageArea>
@@ -191,9 +202,9 @@ const MessageTextBody = styled.div`
   white-space: pre-wrap;
 `
 
-function HumanLogo() {
+function HumanLogo({size}: {size?: number}) {
   return (
-  <svg xmlns="http://www.w3.org/2000/svg" data-name="Isolation Mode" viewBox="0 0 24 24" width="30" height="30" style={{fill: "#fff"}}>
+  <svg xmlns="http://www.w3.org/2000/svg" data-name="Isolation Mode" viewBox="0 0 24 24" width={size} height={size} style={{fill: "#fff"}}>
     <path d="M21,24H18V19a2,2,0,0,0-2-2H8a2,2,0,0,0-2,2v5H3V19a5.006,5.006,0,0,1,5-5h8a5.006,5.006,0,0,1,5,5Z"/>
     <path d="M12,12a6,6,0,1,1,6-6A6.006,6.006,0,0,1,12,12Zm0-9a3,3,0,1,0,3,3A3,3,0,0,0,12,3Z"/>
   </svg>
