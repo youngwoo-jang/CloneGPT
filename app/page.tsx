@@ -14,6 +14,19 @@ export default function Home() {
   const [messages, setMessages] = useState<{role:"You" | "ChatGPT", content:string}[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const middleAreaRef = useRef<HTMLDivElement>(null);
+  const textInputRef = useRef<HTMLTextAreaElement>(null);
+  const stoppedGenerating = useRef(false);
+
+  useEffect(()=>{
+    if(middleAreaRef.current === null) return;
+    middleAreaRef.current.scrollTop = middleAreaRef.current.scrollHeight;
+  },[messages])
+
+  useEffect(()=>{
+    if(textInputRef.current === null) return;
+    textInputRef.current.style.height = 'auto';
+    textInputRef.current.style.height = textInputRef.current.scrollHeight + "px";
+  },[textInput])
 
   const handleSubmit = useCallback(async () => {
     if(textInput === "") return;
@@ -25,10 +38,15 @@ export default function Home() {
     const stream = await openai.chat.completions.create({
       model: "gpt-4",
       messages: [{ role: "user", content: textInput}],
-      stream: true,
+      stream: true
     });
-
+    
     for await (const chunk of stream) {
+      if(stoppedGenerating.current) {
+        stream.controller.abort();
+        stoppedGenerating.current = false;
+        return;
+      }
       setMessages((prevMessages)=> {
         if(prevMessages[prevMessages.length-1].role == "You") {
           return [...prevMessages, {role:"ChatGPT", content:chunk.choices[0]?.delta?.content || ""}];
@@ -42,10 +60,10 @@ export default function Home() {
     setIsGenerating(false);
   },[textInput]);
 
-  useEffect(()=>{
-    if(middleAreaRef.current === null) return;
-    middleAreaRef.current.scrollTop = middleAreaRef.current.scrollHeight;
-  },[messages])
+  const handleStop = () => {
+    stoppedGenerating.current = true;
+    setIsGenerating(false);
+  }
 
   return (
     <Base>
@@ -76,28 +94,33 @@ export default function Home() {
             </AttachButton>
           </AttachButtonArea>
           <TextInput
+            ref={textInputRef}
             rows={1}
             value={textInput}
             placeholder="Message CloneGPT..." 
             onChange={(e)=>{
-              e.target.style.height = 'auto';
-              e.target.style.height = e.target.scrollHeight + "px";
               setTextInput(e.target.value);
             }}
-            onKeyPress={(e)=>{ //onKeyDown has a issue triggering twice in Korean
+            onKeyPress={(e)=>{ //onKeyDown has a issue triggering twice in Korean)
               if(e.key === "Enter" && !e.shiftKey) {
-                handleSubmit();
                 e.preventDefault();
+                
+                if(textInput === "" || isGenerating) return;
+                handleSubmit();
               }
             }}/>
           <SubmitButtonArea>
-            <SubmitButton
-              $available={textInput !== ""}
-              onClick={handleSubmit}>
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                <path d="M7 11L12 6L17 11M12 18V7" stroke={textInput !== "" ? "#000" : "#2e303a"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            </SubmitButton>
+            {isGenerating 
+              ? <StopButton 
+                  onClick={handleStop}/>
+              : <SubmitButton
+                  $available={textInput !== ""}
+                  onClick={handleSubmit}>
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                    <path d="M7 11L12 6L17 11M12 18V7" stroke={textInput !== "" ? "#000" : "#2e303a"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </SubmitButton>
+            }
           </SubmitButtonArea>
         </Bottom>
       </BottomArea>
@@ -246,3 +269,29 @@ const SubmitButton = styled.div<{$available: boolean}>`
   align-items: center;
   margin: 16px 15px;
 `;
+
+function StopButton({...props}) {
+  const Ring = styled.div`
+    border-radius: 50%;
+    border: 2px solid #d9d9e3;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: transparent;
+    width: 20px;
+    height: 20px;
+    margin: 19px 15px;
+  `
+
+  const Box = styled.div`
+    background: #d9d9e3;
+    width: 40%;
+    height: 40%;
+  `
+
+  return (
+  <Ring {...props}>
+    <Box/>
+  </Ring>
+  )
+}
