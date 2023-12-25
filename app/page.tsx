@@ -17,6 +17,8 @@ export default function Home() {
   const textInputRef = useRef<HTMLTextAreaElement>(null);
   const stoppedGenerating = useRef(false);
 
+  const availableToSubmit = textInput !== "";
+
   useEffect(()=>{
     if(middleAreaRef.current === null) return;
     middleAreaRef.current.scrollTop = middleAreaRef.current.scrollHeight;
@@ -29,7 +31,7 @@ export default function Home() {
   },[textInput])
 
   const handleSubmit = useCallback(async () => {
-    if(textInput === "") return;
+    if(availableToSubmit === false) return;
 
     setTextInput("");
     setIsGenerating(true);
@@ -45,7 +47,7 @@ export default function Home() {
       if(stoppedGenerating.current) {
         stream.controller.abort();
         stoppedGenerating.current = false;
-        return;
+        break;
       }
       setMessages((prevMessages)=> {
         if(prevMessages[prevMessages.length-1].role == "You") {
@@ -58,11 +60,10 @@ export default function Home() {
       });
     }
     setIsGenerating(false);
-  },[textInput]);
+  },[textInput, availableToSubmit]);
 
   const handleStop = () => {
     stoppedGenerating.current = true;
-    setIsGenerating(false);
   }
 
   return (
@@ -114,7 +115,7 @@ export default function Home() {
               ? <StopButton 
                   onClick={handleStop}/>
               : <SubmitButton
-                  $available={textInput !== ""}
+                  $available={availableToSubmit}
                   onClick={handleSubmit}>
                   <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
                     <path d="M7 11L12 6L17 11M12 18V7" stroke={textInput !== "" ? "#000" : "#2e303a"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
@@ -187,6 +188,7 @@ const MessageTextTitle = styled.div`
 const MessageTextBody = styled.div`
   font-weight: 300;
   font-size: 16px;
+  white-space: pre-wrap;
 `
 
 function HumanLogo() {
@@ -270,28 +272,27 @@ const SubmitButton = styled.div<{$available: boolean}>`
   margin: 16px 15px;
 `;
 
+const StopButtonRing = styled.div`
+  border-radius: 50%;
+  border: 2px solid #d9d9e3;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: transparent;
+  width: 20px;
+  height: 20px;
+  margin: 19px 15px;
+`
+const StopButtonSquare = styled.div`
+  background: #d9d9e3;
+  width: 40%;
+  height: 40%;
+`
+
 function StopButton({...props}) {
-  const Ring = styled.div`
-    border-radius: 50%;
-    border: 2px solid #d9d9e3;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    background: transparent;
-    width: 20px;
-    height: 20px;
-    margin: 19px 15px;
-  `
-
-  const Box = styled.div`
-    background: #d9d9e3;
-    width: 40%;
-    height: 40%;
-  `
-
   return (
-  <Ring {...props}>
-    <Box/>
-  </Ring>
+  <StopButtonRing {...props}>
+    <StopButtonSquare/>
+  </StopButtonRing>
   )
 }
