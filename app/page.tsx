@@ -3,6 +3,7 @@
 import OpenAI from "openai";
 import { useCallback, useEffect, useRef, useState } from "react";
 import styled from "styled-components";
+import CodeBlock from "@/src/components/CodeBlock";
 
 const openai = new OpenAI({
   apiKey: process.env.NEXT_PUBLIC_API_KEY,
@@ -36,9 +37,6 @@ export default function Home() {
   const handleScroll = useCallback(() => {
     if(middleAreaRef.current === null) return;
     isActivatedAutoScroll.current = middleAreaRef.current.scrollTop >= middleAreaRef.current.scrollHeight - middleAreaRef.current.clientHeight - 50; //50 is just margin
-    if(isActivatedAutoScroll.current) {
-      console.log("activated")
-    }
   },[middleAreaRef]);
 
   const handleSubmit = useCallback(async () => {
@@ -98,7 +96,19 @@ export default function Home() {
                     : "CloneGPT"
                   }
                 </MessageTextTitle>
-                <MessageTextBody>{message.content}</MessageTextBody>
+                <MessageTextBody>
+                  {
+                  message.content.split("```").map((text, index)=>{
+                    if(index % 2 === 1) {
+                      return (
+                        <CodeBlock key={index} code={text}></CodeBlock>
+                      )
+                    } else {
+                      return text
+                    }
+                  })
+                  }
+                </MessageTextBody>
               </MessageTextArea>
             </MessageArea>
             )
