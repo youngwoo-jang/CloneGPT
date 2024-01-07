@@ -3,11 +3,15 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import styled from "styled-components";
 import CodeBlock from "@/src/components/CodeBlock";
-import Submit from "@/src/components/Submit";
+
+type Message = {
+    role:"user" | "assistant";
+    content:string;
+}
 
 export default function Home() {
   const [textInput, setTextInput] = useState("");
-  const [messages, setMessages] = useState<{role:"user" | "assistant", content:string}[]>([]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const middleAreaRef = useRef<HTMLDivElement>(null);
   const textInputRef = useRef<HTMLTextAreaElement>(null);
@@ -29,56 +33,45 @@ export default function Home() {
     textInputRef.current.style.height = textInputRef.current.scrollHeight + "px";
   },[textInput])
 
-  useEffect(()=>{
-    // const eventSource = new EventSource("/api/chat", {
-    //   withCredentials: true,
-    // });
-    // console.info("Listenting on SEE", eventSource);
-    // eventSource.onmessage = (event) => {
-    //   console.log("onMessage");
-    // };
-  
-    // return () => {
-    //   console.info("Closing SSE");
-    //   eventSource.close();
-    // };
-  },[])
-
   const handleScroll = useCallback(() => {
     if(middleAreaRef.current === null) return;
     isActivatedAutoScroll.current = middleAreaRef.current.scrollTop >= middleAreaRef.current.scrollHeight - middleAreaRef.current.clientHeight - 50; //50 is just margin
   },[middleAreaRef]);
 
   const handleSubmit = useCallback(async () => {
-    const res = await fetch("/api/chat", {
-      method: "POST",
-      body: JSON.stringify({
-        messages: [...messages, { role: "user", content: textInput}]
-      })
+    if(textInput === "" || isGenerating) return;
+
+    const newMessage: Message = { role: "user", content: textInput};
+    const newMessages = [...messages, newMessage];
+
+    setMessages(newMessages);
+    setTextInput("");
+    setIsGenerating(true);
+
+    const model = "gpt-3.5-turbo";
+    const urlParams = new URLSearchParams({
+        model,
+        messages: JSON.stringify(newMessages)
     });
+    const eventSource = new EventSource('/api/chat2?'+urlParams.toString());
+    eventSource.onmessage = (event) => {
+        const { text, finish_reason } = JSON.parse(event.data);
+        if(finish_reason === "stop") {
+            eventSource.close();
+            setIsGenerating(false);
+        }
 
-    console.log("first res arrived")
-
-    const reader = res.body?.getReader();
-    let decoder = new TextDecoder();
-    while(true) {
-      const data = await reader?.read();
-      if(data?.done===undefined || data?.value===undefined) break;
-
-      const { done, value } = data;
-      if(done) break;
-      let string = decoder.decode(value);
-      console.log(string);
-    }
-    console.log("done")
-
-    // if(availableToSubmit === false) return;
-
-    // setTextInput("");
-    // setIsGenerating(true);
-    // setMessages((prevMessages)=>[...prevMessages, {role:"user", content:textInput}]);
-
-    // setIsGenerating(false);
+        setMessages((prev)=>{
+            const lastMessage = prev[prev.length - 1];
+            if(lastMessage.role === "assistant") {
+                const modifiedMessage: Message = { role: "assistant", content: lastMessage.content + text};
+                return [...prev.slice(0, -1), modifiedMessage];
+            } else {
+                const newMessage: Message = { role: "assistant", content: text};
+                return [...prev, newMessage];
+            }
+        })
+    };
   },[textInput, availableToSubmit, messages]);
 
   const handleStop = () => {
@@ -165,7 +158,6 @@ export default function Home() {
           </SubmitButtonArea>
         </Bottom>
       </BottomArea>
-      <Submit/>
     </Base>
   )
 }

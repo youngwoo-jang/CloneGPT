@@ -4,6 +4,12 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import styled from "styled-components";
 import CodeBlock from "@/src/components/CodeBlock";
 import Submit from "@/src/components/Submit";
+import OpenAI from "openai";
+
+const openai = new OpenAI({
+    apiKey: process.env.NEXT_PUBLIC_OPENAI_API_KEY,
+    dangerouslyAllowBrowser: true
+});
 
 export default function Home() {
   const [textInput, setTextInput] = useState("");
@@ -29,56 +35,23 @@ export default function Home() {
     textInputRef.current.style.height = textInputRef.current.scrollHeight + "px";
   },[textInput])
 
-  useEffect(()=>{
-    // const eventSource = new EventSource("/api/chat", {
-    //   withCredentials: true,
-    // });
-    // console.info("Listenting on SEE", eventSource);
-    // eventSource.onmessage = (event) => {
-    //   console.log("onMessage");
-    // };
-  
-    // return () => {
-    //   console.info("Closing SSE");
-    //   eventSource.close();
-    // };
-  },[])
-
   const handleScroll = useCallback(() => {
     if(middleAreaRef.current === null) return;
     isActivatedAutoScroll.current = middleAreaRef.current.scrollTop >= middleAreaRef.current.scrollHeight - middleAreaRef.current.clientHeight - 50; //50 is just margin
   },[middleAreaRef]);
 
   const handleSubmit = useCallback(async () => {
-    const res = await fetch("/api/chat", {
-      method: "POST",
-      body: JSON.stringify({
-        messages: [...messages, { role: "user", content: textInput}]
-      })
+    setMessages([...messages, { role: "user", content: textInput}]);
+
+    const stream = await openai.chat.completions.create({
+        model: 'gpt-3.5-turbo',
+        stream: true,
+        messages: [...messages, { role: "user", content: textInput}],
     });
-
-    console.log("first res arrived")
-
-    const reader = res.body?.getReader();
-    let decoder = new TextDecoder();
-    while(true) {
-      const data = await reader?.read();
-      if(data?.done===undefined || data?.value===undefined) break;
-
-      const { done, value } = data;
-      if(done) break;
-      let string = decoder.decode(value);
-      console.log(string);
+    
+    for await (const chunk of stream) {
+        console.log(chunk);
     }
-    console.log("done")
-
-    // if(availableToSubmit === false) return;
-
-    // setTextInput("");
-    // setIsGenerating(true);
-    // setMessages((prevMessages)=>[...prevMessages, {role:"user", content:textInput}]);
-
-    // setIsGenerating(false);
   },[textInput, availableToSubmit, messages]);
 
   const handleStop = () => {
@@ -165,7 +138,6 @@ export default function Home() {
           </SubmitButtonArea>
         </Bottom>
       </BottomArea>
-      <Submit/>
     </Base>
   )
 }
